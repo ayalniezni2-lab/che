@@ -71,6 +71,23 @@ window.addEventListener('error', (e) => toast('Error: ' + e.message));
 render();
 
 // web version: keep the app itself on the phone so it opens fast (and without internet after the first time)
+// Updates: look for a new version every time the app is opened or comes back to the front. When one has been
+// installed, switch to it - at once on a quiet page, or via a banner in the middle of exercises. Progress is
+// kept in the phone's storage and is not touched by an update.
 if (isStatic && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch((err) => console.warn('Offline cache not available', err));
+  const hadVersion = !!navigator.serviceWorker.controller;      // false on the very first visit
+  navigator.serviceWorker.register('sw.js').then((reg) => {
+    const check = () => reg.update().catch(() => { /* offline: try again next time */ });
+    addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+    setInterval(check, 30 * 60 * 1000);
+  }).catch((err) => console.warn('Offline cache not available', err));
+  let switching = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadVersion || switching) return;
+    switching = true;
+    const busy = /^#\/(session|unit|practice|placement)/.test(location.hash);
+    if (!busy) { location.reload(); return; }
+    document.body.append(h('div.update-bar', 'A new version of Che! is ready.',
+      h('button.btn.primary', { onclick: () => location.reload() }, 'Update now')));
+  });
 }
