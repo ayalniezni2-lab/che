@@ -41,7 +41,9 @@ export default async function (main) {
 
   main.append(h('h1', 'Settings'),
     h('div.card', h('h3', 'Look'),
-      h('div.row', 'Theme', select('theme', [['auto', 'Match my computer'], ['light', 'Light'], ['dark', 'Dark']]))),
+      h('div.row', 'Theme', select('theme', [['auto', 'Match my computer'], ['light', 'Light'], ['dark', 'Dark']])),
+      check('accent_marks', 'Highlight accents, ñ, ¿ and ¡ in yellow',
+        'Shows the letters a plain keyboard cannot type. Switch it off for clean text.')),
     h('div.card', h('h3', 'Audio'),
       h('div.row', 'Default speed', select('audio_rate', [[1, 'Normal'], [0.75, 'Slow (0.75×)']])),
       check('autoplay', 'Play audio automatically', 'On listening exercises and after each answer.')),

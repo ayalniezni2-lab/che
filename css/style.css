@@ -89,6 +89,7 @@ h3 { font-size: 1.05rem; margin: 1rem 0 .4rem; } p { margin: .5rem 0; }
 .es-big { font-size: 1.35rem; font-weight: 700; color: var(--es); }
 .en { color: var(--ink-2); }
 mark.acc { background: var(--hl); color: inherit; border-radius: 3px; padding: 0 1px; }
+:root.no-acc mark.acc { background: none; padding: 0; }      /* Settings -> Look: highlight switched off */
 .play { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; width: 30px;
   height: 30px; cursor: pointer; display: inline-grid; place-items: center; font-size: .8rem;
   vertical-align: middle; flex: none; color: var(--accent); }

@@ -1,7 +1,7 @@
 // Web version only (registered when window.CHE_STATIC is set): keeps Che! itself on the phone, so it opens fast
 // and works without internet after the first visit. tools/build_site.py fills in BUILD and SHELL.
 // Audio is not cached here: the browser streams each clip from the site (needs internet).
-const BUILD = "20261001-1200-a3da8b8";
+const BUILD = "20261001-1250-36ab699";
 const SHELL = ["./", "icon-192.png", "icon-512.png", "index.html", "manifest.webmanifest", "css/style.css", "js/app.js", "js/backend.js", "js/exercise.js", "js/input.js", "js/ui.js", "js/views/culture.js", "js/views/home.js", "js/views/learn.js", "js/views/notebook.js", "js/views/placement.js", "js/views/practice.js", "js/views/session.js", "js/views/settings.js", "js/views/stats.js", "js/views/unit.js", "js/views/verbs.js", "js/views/words.js", "engine.zip"];
 const PYODIDE = 'https://cdn.jsdelivr.net/pyodide/';
 const APP_CACHE = 'che-app-' + BUILD;
