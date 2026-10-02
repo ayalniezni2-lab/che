@@ -35,16 +35,26 @@ export default async function (main) {
 }
 
 function nextUnit(b) {
-  const lvl = (b.placement && b.placement.level) || 'a1';
-  const order = ['a1', 'a2', 'b1', 'b2'];
-  const from = order.indexOf(lvl);
-  const next = b.units.find((u) => !u.completed && order.indexOf(u.level) >= from)
-    || b.units.find((u) => !u.completed);
+  const next = b.next_unit;
   if (!next) {
     return h('p.muted', b.units.length
       ? 'You finished every unit. Type "refill" in Claude Code for more.' : 'No units yet.');
   }
-  return h('a.unit', { href: '#/unit/' + encodeURIComponent(next.id) },
+  const link = h('a.unit', { href: '#/unit/' + encodeURIComponent(next.id) },
     h('div.num', String(next.order || '•')),
     h('div', h('div.t', next.title), h('div.g', next.goal || '')));
+  const hd = next.hold;
+  if (!hd) return link;
+  // one tense at a time: the next lesson starts a new tense, the current one is not comfortable yet
+  const status = hd.answers < hd.min_answers
+    ? `you have answered ${hd.answers} question${hd.answers === 1 ? '' : 's'} in it so far`
+    : `${hd.accuracy}% right over your last ${hd.answers} answers`;
+  return h('div',
+    h('div.tip', h('b', 'One tense at a time. '),
+      `The next lesson starts something new (the ${hd.new_label}). First get comfortable with the ${hd.label}: `
+      + `${status}. The goal is ${hd.goal}% right over at least ${hd.min_answers} answers.`),
+    h('div.row', { style: 'margin:8px 0' },
+      h('button.btn.primary', { onclick: () => go('#/practice/tense/' + hd.tense) }, `Practise the ${hd.label}`),
+      h('a.btn', { href: '#/unit/' + encodeURIComponent(next.id) }, 'Go to the next lesson anyway')),
+    h('div.small.muted', 'Next lesson:'), link);
 }

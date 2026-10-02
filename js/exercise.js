@@ -7,16 +7,27 @@ import { answerBox } from './input.js';
 const CHOICE = ['mc', 'listen_mc', 'dialogue_q'];
 const LISTEN = ['listen_mc', 'listen_type'];
 
-// A new word is shown (with audio and an example) before it is ever tested.
+// A new word is shown (with audio and an example) before it is ever tested — and so is a new verb's table.
 function renderIntro(root, ex, onDone) {
   const it = ex.item;
   const go = () => { document.removeEventListener('keydown', onKey); onDone && onDone({ intro: true, correct: true }); };
   const onKey = (e) => { if (e.key === 'Enter' && !e.repeat) { e.preventDefault(); go(); } };
   document.addEventListener('keydown', onKey);
+  if (ex.kind === 'verb') {
+    root.replaceChildren(h('div.card.exercise',
+      h('div.prompt', '✨ ' + ex.title),
+      h('div.en-line', ex.inf + ' = ' + (ex.en || '')),
+      h('p.small.muted', 'Have a look at the whole table first — the questions about it come next.'),
+      ex.table ? conjTable(ex.table) : null,
+      ex.tip ? h('div.tip.small', h('span', { html: md(ex.tip) })) : null,
+      h('div.row', { style: 'margin-top:12px' }, h('button.btn.primary.continue', { type: 'button', onclick: go }, 'Got it'),
+        h('span.small.muted.kbd-hint', 'or press Enter'))));
+    return () => document.removeEventListener('keydown', onKey);
+  }
   root.replaceChildren(h('div.card.exercise',
     h('div.row.between', h('div.prompt', '✨ New word'), regTag(it.reg)),
     h('div.row', { style: 'margin:10px 0' }, h('div.es-big', { html: accentMarked(it.es) }), playBtn(it.audio)),
-    h('div', { style: 'font-size:1.15rem' }, it.en),
+    h('div.en-line', { style: 'font-size:1.15rem' }, it.en),
     it.note ? h('div.tip.small', it.note) : null,
     it.ex ? h('div.card.flat', exampleRow({ es: it.ex, en: it.ex_en, audio: it.ex_audio })) : null,
     h('div.row', { style: 'margin-top:12px' }, h('button.btn.primary.continue', { type: 'button', onclick: go }, 'Got it'),
@@ -47,7 +58,7 @@ export function renderExercise(root, ex, { onDone, ctx = {}, dry = false } = {})
     box.append(h('div', { style: 'margin:10px 0' },
       h('span.es-big', ex.inf), h('span.en', '  ' + (ex.inf_en || ''))),
     h('div.row', h('span.tag.level', ex.tense_label || ''), ex.person_label ? h('span.tag.informal', ex.person_label) : null,
-      ex.gloss ? h('span.muted', '“' + ex.gloss + '”') : null));
+      ex.gloss ? h('span.en', '“' + ex.gloss + '”') : null));
   } else if (LISTEN.includes(ex.type)) {
     const big = h('button.btn.big', { type: 'button', onclick: () => playAudio(ex.audio) }, '🔊  Play');
     const slow = h('button.btn', { type: 'button', onclick: () => playAudio(ex.audio, 0.75) }, '0.75×');
@@ -55,11 +66,17 @@ export function renderExercise(root, ex, { onDone, ctx = {}, dry = false } = {})
       ex.audio ? null : h('span.small.muted', 'No audio clip for this one yet — press “I don’t know” to skip.')));
     if (ex.audio && settings.autoplay) setTimeout(() => playAudio(ex.audio), 250);
   } else {
+    // a sentence with a blank plays with a pause where the blank is: the audio must not give the answer away
     if (ex.es) box.append(h('div.row', h('div.sentence', { html: accentMarked(ex.es) }),
-      ex.type === 'fill' || ex.original_type === 'fill' ? null : playBtn(ex.audio)));
-    if (ex.en && ex.type !== 'es2en') box.append(h('div.hint', ex.en));
+      ex.es.includes('___') ? (ex.audio_q ? playBtn(ex.audio_q) : null) : playBtn(ex.audio)));
+    if (ex.en && ex.type !== 'es2en') box.append(h('div.en-line', ex.en));
   }
   if (ex.hint) box.append(h('div.hint', '💡 ' + ex.hint));
+  // words no lesson has taught yet: shown with their meaning, so nothing is expected that was never learned
+  if (ex.word_hints && ex.word_hints.length) {
+    box.append(h('div.word-hints', h('span.lbl', 'New words'),
+      ex.word_hints.map((w) => h('span.wh', h('span.es', w.es), ' ', h('span.en', '= ' + w.en)))));
+  }
 
   // ---------- answer widgets
   if (CHOICE.includes(ex.type)) {
@@ -189,7 +206,7 @@ export function feedbackPanel(ex, r, onContinue) {
     panel.append(h('div.row', h('div.es-big', { html: accentMarked(r.expected) }), playBtn(r.audio)));
   }
   if (showSentence) panel.append(h('div', h('span.es', { html: accentMarked(r.sentence) }), r.sentence_en ? h('span.en', '  — ' + r.sentence_en) : null));
-  else if (r.sentence_en && ex.type !== 'en2es') panel.append(h('div.en', r.sentence_en));
+  else if (r.sentence_en && ex.type !== 'en2es') panel.append(h('div.en-line', r.sentence_en));
   if (r.accent_note) panel.append(h('div.note-accent', { html: 'ℹ️ ' + accentMarked(r.accent_note) + ' <span class="muted">(not an error — just so you know how it is written)</span>' }));
   (r.notes || []).forEach((n) => panel.append(h('div.note-accent', { html: md(n) })));
 

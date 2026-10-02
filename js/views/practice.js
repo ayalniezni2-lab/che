@@ -8,7 +8,7 @@ const TENSES = [
   ['impneg', '“don’t” commands'], ['fut', 'simple future'], ['cond', '“would”'], ['pp', '“done” form'],
   ['perf', '“have done”'], ['subjp', 'past “wishes” form'], ['plup', '“had done”']];
 
-export default async function (main) {
+export default async function (main, args = []) {
   let stop = null;
   const chosen = new Set();
   const level = h('select.sel', h('option', { value: '' }, 'My level'), ['a1', 'a2', 'b1', 'b2'].map((l) => h('option', { value: l }, 'Up to ' + l.toUpperCase())));
@@ -30,11 +30,30 @@ export default async function (main) {
         tile('🗂️ Words', 'English → Spanish and back', () => run({ kind: 'vocab' })),
         tile('🎧 Listening', 'Hear it, choose or type it', () => run({ kind: 'listen' })),
         tile('🧩 Sentences', 'Build and translate full sentences', () => run({ kind: 'sentences' }))),
+      paceCard,
       h('div.card', h('h3', '🔤 Verb forms'),
         h('p.small.muted', 'Pick tenses (none = everything you have reached so far).'), tenseChips,
         h('div.row', verbsBox, h('button.btn.primary', { onclick: () => run({ kind: 'conj', tenses: [...chosen],
           verbs: verbsBox.value.split(',').map((v) => v.trim().toLowerCase()).filter(Boolean) }) }, 'Drill verbs')))));
   };
+  // one tense at a time: every tense taught so far, how comfortable you are with it, and a workout for it
+  const paceCard = h('div.card', h('h3', '📈 Your tenses'), h('p.small.muted', 'Loading…'));
+  api('pace').then((pc) => {
+    if (!pc.tenses.length) {
+      paceCard.replaceChildren(h('h3', '📈 Your tenses'),
+        h('p.small.muted', 'Verb tenses appear here as the lessons teach them.'));
+      return;
+    }
+    paceCard.replaceChildren(h('h3', '📈 Your tenses'),
+      h('p.small.muted', `A tense is comfortable at ${pc.goal}% right over at least ${pc.min_answers} answers. `
+        + 'A workout shows the table of anything new, then the forms one by one, then whole sentences.'),
+      ...pc.tenses.map((t) => h('div.pace-row',
+        h('span.name', (t.mastered ? '✅ ' : t.focus ? '🎯 ' : '• ') + t.label),
+        h('div.bar' + (t.mastered ? '.good' : ''), h('i', { style: `width:${t.answers ? t.accuracy : 0}%` })),
+        h('span.small.muted', t.answers ? `${t.accuracy}% · ${t.answers}` : t.placement ? 'placement ✓' : 'not yet'),
+        h('button.btn', { onclick: () => run({ kind: 'tense', tense: t.tense }) }, 'Workout'))));
+  }).catch(() => paceCard.remove());
+
   const tile = (title, sub, fn) => h('button.card.btn', { style: 'text-align:left;margin:0', onclick: fn }, h('div', { style: 'font-size:1.15rem' }, title), h('div.small.muted', sub));
 
   async function run(spec) {
@@ -52,5 +71,6 @@ export default async function (main) {
     } });
   }
   menu();
+  if (args[0] === 'tense' && args[1]) run({ kind: 'tense', tense: args[1] });
   return () => { if (stop) stop(); };
 }

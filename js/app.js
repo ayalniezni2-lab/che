@@ -23,7 +23,6 @@ export function applyTheme(theme) {
   let t = theme || 'auto';
   if (t === 'auto') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   document.documentElement.dataset.theme = t;
-  document.documentElement.classList.toggle('no-acc', settings.accent_marks === false);
 }
 
 export async function refreshBoot() {

@@ -49,9 +49,9 @@ export function h(sel, attrs, ...kids) {
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// Mark accented letters / ñ / ¿ ¡ so the learner sees the real spelling.
+// Spanish text for an html: slot. (Accented letters used to be highlighted; the learner asked for plain text.)
 export function accentMarked(text) {
-  return esc(text).replace(/[áéíóúüñÁÉÍÓÚÜÑ¿¡]/g, (c) => `<mark class="acc">${c}</mark>`);
+  return esc(text);
 }
 
 // Tiny markdown: **bold**, _italic_, `spanish`, lists (- ), blank line = paragraph.
