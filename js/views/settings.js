@@ -55,7 +55,7 @@ export default async function (main) {
     h('div.card', h('h3', 'Your progress file'),
       h('p.muted.small', isStatic
         ? 'Saved in this browser on this device only. Export now and then to keep a copy (or to move to another device), and add Che! to your home screen so the phone keeps it.'
-        : 'Saved on this computer in progress/progress.json, with the last 10 backups in progress/backups/.'),
+        : `Saved on this computer in ${b.progress_dir || 'the progress folder'} (the last 10 backups are in its "backups" folder). New versions of Che! find it there by themselves.`),
       h('div.row',
         h('button.btn', { onclick: async () => { await exportProgress(); toast('Progress exported — keep that file somewhere safe.', 4000); } }, '⬇ Export'),
         h('button.btn', { onclick: () => picker.click() }, '⬆ Import'),

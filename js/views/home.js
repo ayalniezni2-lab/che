@@ -1,6 +1,5 @@
 // Today: streak, quick stats, the "Today" session button.
 import { h, api, toast, exportProgress, chapterHref } from '../ui.js';
-import { isStatic } from '../backend.js';
 import { refreshBoot, go } from '../app.js';
 
 export default async function (main) {
@@ -33,28 +32,22 @@ export default async function (main) {
       h('div.card.stat', h('div.n', String(b.counts.vocab)), h('div.l', 'words & phrases in the app'))),
     b.content_errors && b.content_errors.length
       ? h('div.card', h('h3', 'Content problems'), h('ul', b.content_errors.map((e) => h('li.small', e)))) : null,
+    h('p.small.muted.center.version', `Che! version ${b.version || '?'}` + (b.version_date ? ` · ${b.version_date}` : '')),
   ));
 }
 
-// Every two weeks (when there is real progress): why and how to keep a copy of the progress file.
+// Every two weeks (when there is real progress): a quiet one-line nudge to keep a copy of the progress file.
 function backupReminder() {
-  const card = h('div.tip',
-    h('p', h('b', 'Back up your progress. '), isStatic
-      ? 'Your progress is saved only inside this app on this device. If the app icon is deleted, the browser data is '
-        + 'cleared or you change phones, it is gone for good — unless you have a copy.'
-      : 'Your progress is saved on this computer. A copy somewhere else keeps it safe if the computer breaks or is replaced.'),
-    h('p', h('b', 'How: '), 'tap ⚙️ Settings (the last item in the top menu — on a phone, swipe the menu left) → “Your progress file” → ⬇ Export, and keep the file '
-      + '(in Files, Google Drive, or e-mail it to yourself). To bring it back later: the same place → ⬆ Import. '
-      + 'Or just use the button below.'),
-    h('div.row', { style: 'margin-top:8px' },
-      h('button.btn.primary', { onclick: async () => {
-        await exportProgress(); card.remove(); toast('Progress exported — keep that file somewhere safe.', 4000);
-      } }, '⬇ Back up now'),
-      h('button.btn', { onclick: async () => {
-        const d = new Date(Date.now() + 7 * 864e5);
-        const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        await api('settings', { backup_snooze: day }); card.remove();
-      } }, 'Remind me in a week')));
+  const card = h('div.backup-nudge',
+    h('span', '💾 Time for a backup — a copy keeps your progress safe.'),
+    h('button.btn.small', { onclick: async () => {
+      await exportProgress(); card.remove(); toast('Backup saved — keep that file somewhere safe.', 4000);
+    } }, 'Back up now'),
+    h('button.btn.small.ghost', { onclick: async () => {
+      const d = new Date(Date.now() + 7 * 864e5);
+      const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      await api('settings', { backup_snooze: day }); card.remove();
+    } }, 'Later'));
   return card;
 }
 
