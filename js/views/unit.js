@@ -1,5 +1,5 @@
 // A unit: first the teaching section (always), then the exercises.
-import { api, h, md, accentMarked, exampleRow, conjTable, playBtn, regTag, esc } from '../ui.js';
+import { api, h, md, accentMarked, exampleRow, conjTable, playBtn, regTag, esc, chapterHref, toast } from '../ui.js';
 import { runSequence } from '../exercise.js';
 import { go } from '../app.js';
 
@@ -38,20 +38,36 @@ export function teachBlock(b) {
   }
 }
 
+const ICON = { tense: '🔤', irregular: '⚡', topic: '💬', general: '☕', reading: '📖' };
+
 export default async function (main, [uid, mode]) {
   const u = await api('unit/' + encodeURIComponent(uid));
   let stop = null;
+  const ch = u.chapter;
+  const done = !!(u.status && (u.status.completed || u.status.skipped));
+  const nextBtn = (label = 'Next chapter →') => (u.next_chapter
+    ? h('button.btn.primary', { onclick: () => go(chapterHref(u.next_chapter)) }, label) : null);
 
   const showLesson = () => {
     if (stop) { stop(); stop = null; }
+    const teach = (u.teach || []).map((b, i) => (i === 0 && b.t === 'text')
+      ? h('div.intro', h('div.label', '📖 Before you start'), h('div.md', { html: md(b.md) }))   // the plain-English opening
+      : teachBlock(b));
     main.replaceChildren(h('div.lesson',
-      h('div.row.between', h('a.small', { href: '#/learn' }, '← All units'),
-        h('span.tag.level', (u.level || '').toUpperCase())),
+      h('a.small', { href: '#/learn' }, '← Learn'),
+      ch ? h('div.small.muted', { style: 'margin-top:6px' },
+        `Stage ${ch.stage_n} · chapter ${ch.pos} of ${ch.count} · ${ICON[ch.kind] || ''} ${ch.kind_label || ''}`) : null,
       h('h1', u.title), u.goal ? h('p.muted', u.goal) : null,
-      (u.teach || []).map(teachBlock),
+      teach,
       h('div.card.center',
         h('p', `${u.exercises.length} exercises. Wrong answers come back once at the end.`),
-        h('button.btn.primary.big', { type: 'button', onclick: showExercises }, 'Start the exercises →'))));
+        h('button.btn.primary.big', { type: 'button', onclick: showExercises }, 'Start the exercises →'),
+        done ? h('p.small.muted', { style: 'margin-top:10px' },
+          u.status.skipped && !u.status.completed ? '↷ You skipped this chapter after the check.' : '✓ You finished this chapter.')
+          : h('div', { style: 'margin-top:12px' },
+            h('button.btn', { type: 'button', onclick: showCheck }, 'Skip — I know this'),
+            h('div.small.muted', { style: 'margin-top:4px' }, 'A short check of 6 questions: get 5 right and the chapter is ticked off.')),
+        done && u.next_chapter ? h('div', { style: 'margin-top:10px' }, nextBtn()) : null)));
     window.scrollTo(0, 0);
   };
 
@@ -65,12 +81,42 @@ export default async function (main, [uid, mode]) {
       main.replaceChildren(h('div.card.center',
         h('h1', out.passed ? '¡Bien ahí!' : 'Good effort'),
         h('p', `First-try score: ${res.right} / ${res.total} (${Math.round(score * 100)}%).`),
-        h('p.muted', out.passed ? 'Unit complete. Everything you practised is now in your review schedule.'
-          : 'You need 70% to tick the unit off. The mistakes are in your Notebook — read the lesson again and retry.'),
+        h('p.muted', out.passed ? 'Chapter complete. Everything you practised is now in your review schedule.'
+          : 'You need 70% to tick the chapter off. The mistakes are in your Notebook — read the lesson again and retry.'),
         h('div.row', { style: 'justify-content:center' },
           h('button.btn', { onclick: showLesson }, 'Back to the lesson'),
           h('button.btn', { onclick: showExercises }, 'Try again'),
-          u.next ? h('button.btn.primary', { onclick: () => go('#/unit/' + encodeURIComponent(u.next)) }, 'Next unit →') : null)));
+          nextBtn())));
+    } });
+  };
+
+  // "Skip — I know this": a few questions from the chapter, graded but not saved as reviews or mistakes
+  const showCheck = async () => {
+    const data = await api('course/check/' + encodeURIComponent(u.id));
+    const stage = h('div');
+    main.replaceChildren(h('div.card.flat', h('b', 'Quick check: '), `answer ${data.items.length} questions from this chapter. `
+      + `${data.pass}% or more and it is ticked off as known.`), stage);
+    stop = runSequence(stage, data.items, { title: 'Check: ' + u.title, dry: true, retry: false, ctx: { check: u.id }, onFinish: async (res) => {
+      stop = null;
+      if (res.aborted) { showLesson(); return; }
+      const out = await api('course/skip', { id: u.id, right: res.right, total: res.total });
+      if (out.passed) {
+        main.replaceChildren(h('div.card.center', h('h1', '¡Genial!'),
+          h('p', `${res.right} / ${res.total} — you know this chapter. It is ticked off, and its words and verbs can now come up in your practice.`),
+          h('div.row', { style: 'justify-content:center' },
+            h('button.btn', { onclick: () => go('#/learn') }, 'Back to Learn'),
+            out.next ? h('button.btn.primary', { onclick: () => go(chapterHref(out.next)) }, 'Next chapter →') : null)));
+        return;
+      }
+      main.replaceChildren(h('div.card.center', h('h1', 'Worth a look'),
+        h('p', `${res.right} / ${res.total}. We suggest doing this chapter — it will not take long.`),
+        h('div.row', { style: 'justify-content:center' },
+          h('button.btn.primary', { onclick: showLesson }, 'Do the chapter'),
+          h('button.btn', { onclick: async () => {
+            const o = await api('course/skip', { id: u.id, force: true });
+            toast('Skipped. You can come back to it any time from Learn.');
+            go(o.next ? chapterHref(o.next) : '#/learn');
+          } }, 'Skip anyway'))));
     } });
   };
 

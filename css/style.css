@@ -111,6 +111,7 @@ h3 { font-size: 1.05rem; margin: 1rem 0 .4rem; } p { margin: .5rem 0; }
 .culture { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 10px 14px;
   border-radius: 0 10px 10px 0; margin: 12px 0; }
 table.t { border-collapse: collapse; width: 100%; margin: 10px 0; }
+#main { min-width: 0; }   /* a wide table scrolls inside the page instead of making the page wider than the phone */
 table.t th, table.t td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; }
 table.t th { background: var(--panel-2); font-size: .85rem; color: var(--ink-2); font-weight: 600; }
 table.conj td.person { color: var(--ink-2); width: 42%; }
@@ -190,6 +191,14 @@ kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5p
   place-items: center; font-weight: 700; flex: none; font-size: .9rem; }
 .unit.done .num { background: var(--good); color: #fff; }
 .unit .t { font-weight: 600; } .unit .g { color: var(--ink-2); font-size: .88rem; }
+.unit.next { border: 2px solid var(--accent); background: var(--accent-soft); }
+.unit.next .num { background: var(--accent); color: var(--accent-ink); }
+details.stage > summary { cursor: pointer; list-style: none; }
+details.stage > summary::-webkit-details-marker { display: none; }
+details.stage.current { border: 2px solid var(--accent); }
+.intro { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 10px; padding: 12px 16px; margin: 12px 0; }
+.intro .label { font-weight: 700; color: var(--accent); font-size: .85rem; letter-spacing: .03em; margin-bottom: 4px; }
+.btn.small { padding: 6px 12px; font-size: .9rem; }
 .dialogue .line { display: flex; gap: 10px; padding: 8px 0; align-items: flex-start; }
 .dialogue .who { font-weight: 700; min-width: 86px; color: var(--ink-2); font-size: .9rem; padding-top: 3px; }
 input[type=text].search, select.sel { padding: 9px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); }

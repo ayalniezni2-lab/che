@@ -1,5 +1,5 @@
 // Reading: usage notes, plus every dialogue and mini-reading with its comprehension questions.
-import { api, h, md, exampleRow, regTag } from '../ui.js';
+import { api, h, md, exampleRow, regTag, chapterHref } from '../ui.js';
 import { dialogueBlock } from './unit.js';
 import { runSequence } from '../exercise.js';
 
@@ -28,17 +28,29 @@ async function showDialogue(main, id) {
   let stop = null;
   const lesson = () => {
     if (stop) { stop(); stop = null; }
-    main.replaceChildren(h('div', h('a.small', { href: '#/culture' }, '← Reading'), h('h1', d.title),
+    const ch = d.chapter;
+    main.replaceChildren(h('div',
+      h('a.small', { href: ch ? '#/learn' : '#/culture' }, ch ? '← Learn' : '← Reading'),
+      ch ? h('div.small.muted', { style: 'margin-top:6px' }, `Stage ${ch.stage_n} · chapter ${ch.pos} of ${ch.count} · 📖 Reading`) : null,
+      h('h1', d.title),
+      ch ? h('div.intro', h('div.label', '📖 Reading chapter'), h('div', 'Read the text below (tap ▶ to hear each line), '
+        + 'then answer the questions about it. 70% ticks the chapter off.')) : null,
       d.intro ? h('p.muted', d.intro) : null, dialogueBlock(d),
       d.questions.length ? h('div.card.center', h('button.btn.primary.big', { onclick: quiz }, `Check your understanding (${d.questions.length}) →`)) : null));
   };
   const quiz = () => {
     const stage = h('div');
     main.replaceChildren(h('details.card', h('summary', { style: 'cursor:pointer' }, 'Show the text again'), dialogueBlock(d)), stage);
-    stop = runSequence(stage, d.questions, { title: d.title, ctx: { dialogue: d.id }, onFinish: (res) => {
+    stop = runSequence(stage, d.questions, { title: d.title, ctx: { dialogue: d.id }, onFinish: async (res) => {
+      stop = null;
+      if (res.aborted) { lesson(); return; }
+      let out = null;
+      if (d.chapter) out = await api('course/reading', { id: d.id, right: res.right, total: res.total });
       stage.replaceChildren(h('div.card.center', h('h2', `${res.right} / ${res.total}`),
+        out ? h('p.muted', out.passed ? 'Chapter complete.' : 'You need 70% to tick this chapter off — read the text again and retry.') : null,
         h('div.row', { style: 'justify-content:center' }, h('button.btn', { onclick: lesson }, 'Back to the text'),
-          h('a.btn.primary', { href: '#/culture' }, 'More dialogues'))));
+          d.next_chapter ? h('a.btn.primary', { href: chapterHref(d.next_chapter) }, 'Next chapter →')
+            : h('a.btn.primary', { href: '#/culture' }, 'More dialogues'))));
     } });
   };
   lesson();

@@ -1,5 +1,5 @@
 // Today's session: mistakes to fix + due reviews + a few new words + weighted drills.
-import { api, h } from '../ui.js';
+import { api, h, chapterHref } from '../ui.js';
 import { runSequence } from '../exercise.js';
 import { go, refreshBoot } from '../app.js';
 
@@ -25,8 +25,8 @@ export default async function (main) {
       main.replaceChildren(h('div.card.center',
         h('h1', res.aborted ? 'Session paused' : '¡Listo por hoy!'),
         h('p', `${res.right} of ${res.total} right on the first try · about ${mins} min · 🔥 ${out.streak}-day streak`),
-        s.next_unit ? h('div', { style: 'max-width:520px;margin:14px auto;text-align:left' }, h('div.small.muted', 'Next lesson'),
-          h('a.unit', { href: '#/unit/' + encodeURIComponent(s.next_unit.id) }, h('div.num', '→'),
+        s.next_unit ? h('div', { style: 'max-width:520px;margin:14px auto;text-align:left' }, h('div.small.muted', 'Next chapter on your path'),
+          h('a.unit', { href: chapterHref(s.next_unit) }, h('div.num', '→'),
             h('div', h('div.t', s.next_unit.title), h('div.g', s.next_unit.goal || '')))) : null,
         h('div.row', { style: 'justify-content:center' },
           h('button.btn', { onclick: () => go('#/home') }, 'Home'),
@@ -38,6 +38,7 @@ export default async function (main) {
     h('h1', 'Today’s session'),
     h('p.muted', `About ${s.minutes} minutes · ${s.items.filter((x) => x.type !== 'intro').length} questions`),
     h('div.grid', { style: 'max-width:640px;margin:12px auto' },
+      sm.chapter ? h('div.stat', h('div.n', String(sm.chapter)), h('div.l', 'from your chapter')) : null,
       h('div.stat', h('div.n', String(sm.mistakes)), h('div.l', 'mistakes to fix')),
       h('div.stat', h('div.n', String(sm.reviews)), h('div.l', 'reviews due')),
       h('div.stat', h('div.n', String(sm.new_words)), h('div.l', 'new words')),

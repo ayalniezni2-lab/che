@@ -27,6 +27,11 @@ export async function exportProgress() {
   await api('progress/exported', {});
 }
 
+// Where a chapter of the course opens: a lesson, or a reading (a text with questions).
+export function chapterHref(ch) {
+  return (ch.type === 'reading' ? '#/culture/d/' : '#/unit/') + encodeURIComponent(ch.id);
+}
+
 // h('div.card', {onclick}, child, child…)
 export function h(sel, attrs, ...kids) {
   const [tagId, ...classes] = sel.split('.');
