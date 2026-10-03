@@ -1,5 +1,5 @@
 // Mistake Notebook: every wrong answer with its diagnosis, filterable by topic and kind of mistake.
-import { api, h, md, accentMarked, conjTable, playBtn, exampleRow, toast } from '../ui.js';
+import { api, h, md, accentMarked, conjTable, whyText, playBtn, exampleRow, toast } from '../ui.js';
 import { runSequence } from '../exercise.js';
 
 const KIND_LABEL = {
@@ -40,7 +40,7 @@ export default async function (main) {
   function card(m) {
     const details = h('div.hidden',
       m.table ? conjTable(m.table) : null,
-      m.why ? h('div.why', { html: '<b>Why:</b> ' + md(m.why) }) : null,
+      m.why ? h('div.why', { html: '<b>Why:</b> ' + md(whyText(m.why, m.table)) }) : null,
       m.extra ? exampleRow(m.extra) : null,
       h('div.row', h('button.btn.ghost.danger.small', { onclick: async () => { await api('notebook/remove', { id: m.id }); toast('Removed.'); load(); } }, 'Remove from notebook')));
     return h('div.card',

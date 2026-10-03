@@ -1,14 +1,7 @@
 // Settings: theme, audio, typing helpers, vulgar opt-in, export / import, placement redo.
-import { api, h, toast, settings } from '../ui.js';
+import { api, h, toast, settings, exportProgress } from '../ui.js';
 import { applyTheme, refreshBoot, go } from '../app.js';
 import { isStatic } from '../backend.js';
-
-// web version: the engine hands back the file's text, and the page saves it
-async function exportFile() {
-  const d = await api('progress/export');
-  const a = h('a', { href: URL.createObjectURL(new Blob([d.text], { type: d.type })), download: d.name });
-  document.body.append(a); a.click(); a.remove();
-}
 
 export default async function (main) {
   const b = await refreshBoot();
@@ -64,8 +57,7 @@ export default async function (main) {
         ? 'Saved in this browser on this device only. Export now and then to keep a copy (or to move to another device), and add Che! to your home screen so the phone keeps it.'
         : 'Saved on this computer in progress/progress.json, with the last 10 backups in progress/backups/.'),
       h('div.row',
-        isStatic ? h('button.btn', { onclick: exportFile }, '⬇ Export')
-          : h('a.btn', { href: '/api/progress/export', download: '' }, '⬇ Export'),
+        h('button.btn', { onclick: async () => { await exportProgress(); toast('Progress exported — keep that file somewhere safe.', 4000); } }, '⬇ Export'),
         h('button.btn', { onclick: () => picker.click() }, '⬆ Import'),
         h('button.btn.danger', { onclick: resetAll }, 'Start over'))),
     picker);

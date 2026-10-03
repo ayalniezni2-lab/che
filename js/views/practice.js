@@ -15,7 +15,7 @@ export default async function (main, args = []) {
   const count = h('select.sel', [10, 15, 20, 30].map((n) => h('option', { value: n, selected: n === 15 }, n + ' questions')));
   const verbsBox = h('input.search', { type: 'text', placeholder: 'Only these verbs (optional): tener, ir, hacer', style: 'min-width:320px' });
   const tenseChips = h('div.chips', TENSES.map(([k, l]) => {
-    const b = h('button.chip', { type: 'button', onclick: () => { chosen.has(k) ? chosen.delete(k) : chosen.add(k); b.classList.toggle('sel', chosen.has(k)); b.style.borderColor = chosen.has(k) ? 'var(--accent)' : ''; } }, l);
+    const b = h('button.chip', { type: 'button', 'aria-pressed': 'false', onclick: () => { chosen.has(k) ? chosen.delete(k) : chosen.add(k); b.classList.toggle('sel', chosen.has(k)); b.setAttribute('aria-pressed', String(chosen.has(k))); } }, l);
     return b;
   }));
 

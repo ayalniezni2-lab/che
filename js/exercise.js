@@ -1,7 +1,7 @@
 // Exercise runner: renders any exercise type, sends the answer to /api/grade, shows the feedback
 // (what you wrote vs the answer, diagnosis, conjugation table, why, extra example).
 // Keyboard: Enter submits · Enter again continues · number keys pick a choice.
-import { api, h, md, accentMarked, playAudio, playBtn, conjTable, regTag, settings, exampleRow, esc } from './ui.js';
+import { api, h, md, accentMarked, playAudio, playBtn, conjTable, whyText, regTag, settings, exampleRow, esc } from './ui.js';
 import { answerBox } from './input.js';
 
 const CHOICE = ['mc', 'listen_mc', 'dialogue_q'];
@@ -19,7 +19,6 @@ function renderIntro(root, ex, onDone) {
       h('div.en-line', ex.inf + ' = ' + (ex.en || '')),
       h('p.small.muted', 'Have a look at the whole table first — the questions about it come next.'),
       ex.table ? conjTable(ex.table) : null,
-      ex.tip ? h('div.tip.small', h('span', { html: md(ex.tip) })) : null,
       h('div.row', { style: 'margin-top:12px' }, h('button.btn.primary.continue', { type: 'button', onclick: go }, 'Got it'),
         h('span.small.muted.kbd-hint', 'or press Enter'))));
     return () => document.removeEventListener('keydown', onKey);
@@ -215,7 +214,7 @@ export function feedbackPanel(ex, r, onContinue) {
   }
   (r.pair_notes || []).forEach((n) => panel.append(h('div.small', { html: md(n) })));
   if (r.table && r.verdict !== 'correct') panel.append(conjTable(r.table));
-  if (r.why && r.verdict !== 'correct') panel.append(h('div.why', { html: '<b>Why:</b> ' + md(r.why).replace(/^<p>|<\/p>$/g, '') }));
+  if (r.why && r.verdict !== 'correct') panel.append(h('div.why', { html: '<b>Why:</b> ' + md(whyText(r.why, r.table)).replace(/^<p>|<\/p>$/g, '') }));
   if (r.why && r.verdict === 'correct' && ex.show_why) panel.append(h('div.why.small', { html: md(r.why) }));
   if (r.extra && r.verdict !== 'correct') panel.append(h('div', h('div.small.muted', 'One more example of the same thing:'), exampleRow(r.extra)));
   if (ex.note && r.verdict === 'correct') panel.append(h('div.small.muted', ex.note));

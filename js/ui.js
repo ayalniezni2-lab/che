@@ -18,6 +18,15 @@ export async function api(path, body) {
   return data;
 }
 
+// Export the progress file (both versions) and remember the day, for the backup reminder.
+export async function exportProgress() {
+  const a = isStatic
+    ? await api('progress/export').then((d) => h('a', { href: URL.createObjectURL(new Blob([d.text], { type: d.type })), download: d.name }))
+    : h('a', { href: '/api/progress/export', download: '' });
+  document.body.append(a); a.click(); a.remove();
+  await api('progress/exported', {});
+}
+
 // h('div.card', {onclick}, child, child…)
 export function h(sel, attrs, ...kids) {
   const [tagId, ...classes] = sel.split('.');
@@ -131,6 +140,13 @@ export const PERSON_LABELS = {
   yo: 'yo', vos: 'vos', el: 'él / ella / usted', nos: 'nosotros', uds: 'ustedes', ellos: 'ellos / ellas' };
 
 // Conjugation table from the server ({title, rows:[{person,label,form,parts,hit,yours}], tip})
+// The table already shows the verb's memory tip (💡); older saved answers repeated it in "Why" — drop it there.
+export function whyText(why, tb) {
+  if (!why) return '';
+  if (tb && tb.tip && why.includes(tb.tip)) why = why.replace(tb.tip, '').trim();
+  return why;
+}
+
 export function conjTable(tb) {
   if (!tb) return null;
   const rows = tb.rows.map((r) => {
