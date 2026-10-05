@@ -223,6 +223,10 @@ input[type=text].search, select.sel { padding: 9px 12px; border-radius: 9px; bor
   /* fingers, not a mouse: bigger targets, and keyboard-only hints are pointless */
   .play { width: 38px; height: 38px; font-size: .9rem; }
   .accent-bar button { min-width: 40px; height: 40px; }
+  /* one row of accent buttons and no shortcuts line: Check must stay above the phone keyboard */
+  .accent-bar { flex-wrap: nowrap; }
+  .accent-bar button { flex: 1 1 0; min-width: 0; max-width: 48px; }
+  .accent-bar .legend { display: none; }
   .opt { padding: 13px 14px; } .opt .k { display: none; }
   .kbd-hint { display: none; }
 }

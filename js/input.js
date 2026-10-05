@@ -37,6 +37,7 @@ export function answerBox({ placeholder = 'Type your answer…', spanish = true,
     type: 'text', placeholder, autocomplete: 'off', autocapitalize: 'off', spellcheck: false,
     lang: spanish ? 'es' : 'en' });
   input.setAttribute('autocorrect', 'off');
+  input.setAttribute('enterkeyhint', 'go');     // the phone keyboard's return key checks the answer
   if (spanish) input.addEventListener('input', () => { if (settings.shortcuts) applyShortcuts(input); });
   let bar = null;
   if (spanish) {
