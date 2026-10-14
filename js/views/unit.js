@@ -1,16 +1,45 @@
 // A unit: first the teaching section (always), then the exercises.
-import { api, h, md, accentMarked, exampleRow, conjTable, playBtn, regTag, esc, chapterHref, toast } from '../ui.js';
-import { runSequence } from '../exercise.js';
+import { api, h, md, accentMarked, exampleRow, conjTable, playBtn, regTag, esc, chapterHref, toast, playAll,
+  prefetchAudio, audioOf } from '../ui.js';
+import { runSequence, savedPlace, forgetPlace } from '../exercise.js';
 import { go } from '../app.js';
 
-export function dialogueBlock(d) {
+// A dialogue or reading: ▶ Play all (line by line), and the English hidden or shown (tap a line to see its English).
+// hideText: listen first — only the sound and the speakers, the text comes after the questions.
+export function dialogueBlock(d, { hideEnglish = false, hideText = false } = {}) {
   if (!d) return null;
+  let stopAll = null;
+  const lines = d.lines.map((l) => {
+    const en = h('div.en.small' + (hideEnglish ? '.hidden' : ''), l.en || '');
+    const row = h('div.line' + (hideEnglish && !hideText ? '.tap' : ''),
+      h('div.who', l.name || ''), playBtn(l.audio, { slow: true }),
+      hideText ? h('div.muted.small', '…') : h('div', h('div.es', { html: accentMarked(l.es) }), en));
+    if (hideEnglish && !hideText) {
+      row.addEventListener('click', () => en.classList.toggle('hidden'));
+      row.title = 'Tap to see the English';
+    }
+    row._en = en;
+    return row;
+  });
+  const allBtn = h('button.btn.small', { type: 'button', onclick: () => {
+    if (stopAll) { stopAll(); return; }
+    allBtn.textContent = '■ Stop';
+    stopAll = playAll(d.lines.map((l) => l.audio), (i) => {
+      lines.forEach((r, j) => r.classList.toggle('speaking', j === i));
+      if (i === -1) { stopAll = null; allBtn.textContent = '▶ Play all'; }
+    });
+  } }, '▶ Play all');
+  const enBtn = hideText ? null : h('button.btn.small.ghost', { type: 'button', onclick: () => {
+    const show = lines.some((r) => r._en.classList.contains('hidden'));
+    lines.forEach((r) => r._en.classList.toggle('hidden', !show));
+    enBtn.textContent = show ? 'Hide English' : 'Show English';
+  } }, hideEnglish ? 'Show English' : 'Hide English');
   return h('div.card.flat.dialogue',
     h('div.row.between', h('b', d.title || 'Dialogue'), d.setting ? h('span.small.muted', d.setting) : null),
-    d.lines.map((l) => h('div.line',
-      h('div.who', l.name || ''), playBtn(l.audio, { slow: true }),
-      h('div', h('div.es', { html: accentMarked(l.es) }), h('div.en.small', l.en || '')))),
-    (d.notes || []).length ? h('div.tip.small', { html: md(d.notes.map((n) => '- ' + n).join('\n')) }) : null);
+    h('div.row', { style: 'margin:6px 0' }, allBtn, enBtn,
+      hideEnglish && !hideText ? h('span.small.muted', 'Tap a line to see its English.') : null),
+    lines,
+    !hideText && (d.notes || []).length ? h('div.tip.small', { html: md(d.notes.map((n) => '- ' + n).join('\n')) }) : null);
 }
 
 export function teachBlock(b) {
@@ -48,20 +77,27 @@ export default async function (main, [uid, mode]) {
   const nextBtn = (label = 'Next chapter →') => (u.next_chapter
     ? h('button.btn.primary', { onclick: () => go(chapterHref(u.next_chapter)) }, label) : null);
 
+  const KEY = 'che-resume:unit:' + u.id;
   const showLesson = () => {
     if (stop) { stop(); stop = null; }
     const teach = (u.teach || []).map((b, i) => (i === 0 && b.t === 'text')
       ? h('div.intro', h('div.label', '📖 Before you start'), h('div.md', { html: md(b.md) }))   // the plain-English opening
       : teachBlock(b));
+    const place = savedPlace(KEY);
+    const left = place ? place.queue.filter((x) => x.type !== 'intro').length : 0;
     main.replaceChildren(h('div.lesson',
       h('a.small', { href: '#/learn' }, '← Learn'),
       ch ? h('div.small.muted', { style: 'margin-top:6px' },
         `Stage ${ch.stage_n} · chapter ${ch.pos} of ${ch.count} · ${ICON[ch.kind] || ''} ${ch.kind_label || ''}`) : null,
       h('h1', u.title), u.goal ? h('p.muted', u.goal) : null,
+      place ? h('div.card.center', h('p', `You stopped half-way through the exercises: ${left} left.`),
+        h('div.row', { style: 'justify-content:center' },
+          h('button.btn.primary', { type: 'button', onclick: () => runExercises(place.queue, place) }, 'Continue where I left off'),
+          h('button.btn', { type: 'button', onclick: () => { forgetPlace(KEY); showLesson(); } }, 'Start them again'))) : null,
       teach,
       h('div.card.center',
         h('p', `${u.exercises.length} exercises. Wrong answers come back once at the end.`),
-        h('button.btn.primary.big', { type: 'button', onclick: showExercises }, 'Start the exercises →'),
+        h('button.btn.primary.big', { type: 'button', onclick: () => { forgetPlace(KEY); showExercises(); } }, 'Start the exercises →'),
         done ? h('p.small.muted', { style: 'margin-top:10px' },
           u.status.skipped && !u.status.completed ? '↷ You skipped this chapter after the check.' : '✓ You finished this chapter.')
           : h('div', { style: 'margin-top:12px' },
@@ -71,10 +107,20 @@ export default async function (main, [uid, mode]) {
     window.scrollTo(0, 0);
   };
 
-  const showExercises = () => {
+  const showExercises = () => runExercises(u.exercises, null);
+
+  // "Try again": what you missed comes back, what you got right is swapped for fresh questions (engine: retry_set)
+  const tryAgain = async () => {
+    const fresh = await api('unit/' + encodeURIComponent(u.id) + '?retry=1');
+    runExercises(fresh.exercises, null);
+  };
+
+  const runExercises = (items, resume) => {
     const stage = h('div');
     main.replaceChildren(stage);
-    stop = runSequence(stage, u.exercises, { title: u.title, ctx: { unit: u.id }, onFinish: async (res) => {
+    prefetchAudio(audioOf(items));
+    stop = runSequence(stage, items, { title: u.title, ctx: { unit: u.id }, resumeKey: KEY, resume, onFinish: async (res) => {
+      stop = null;
       if (res.aborted) { showLesson(); return; }
       const score = res.total ? res.right / res.total : 1;
       const out = await api('unit/complete', { unit: u.id, score });
@@ -85,7 +131,7 @@ export default async function (main, [uid, mode]) {
           : 'You need 70% to tick the chapter off. The mistakes are in your Notebook — read the lesson again and retry.'),
         h('div.row', { style: 'justify-content:center' },
           h('button.btn', { onclick: showLesson }, 'Back to the lesson'),
-          h('button.btn', { onclick: showExercises }, 'Try again'),
+          h('button.btn', { onclick: tryAgain, title: 'What you missed, plus fresh questions on the same material' }, 'Try again'),
           nextBtn())));
     } });
   };

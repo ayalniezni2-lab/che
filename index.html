@@ -2,33 +2,45 @@
 <html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Che! — Argentine Spanish</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2375aadb'/%3E%3Crect y='22' width='64' height='20' fill='%23fff'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23e9b53a'/%3E%3C/svg%3E">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="theme-color" content="#75aadb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <script>
+    // the theme is known before anything is drawn (no white flash while the engine loads in dark mode)
+    try {
+      var t = localStorage.getItem('che-theme') || 'auto';
+      if (t === 'auto') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.dataset.theme = t;
+    } catch (e) { /* storage blocked: light */ }
+  </script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div id="app">
+    <header id="phone-head"><span class="brand">Che<span>!</span></span><span id="phone-streak" class="small muted"></span></header>
     <nav id="nav" aria-label="Main">
       <div class="brand">Che<span>!</span></div>
-      <a href="#/home" data-nav="home">🏠 Today</a>
-      <a href="#/learn" data-nav="learn">📚 Learn</a>
-      <a href="#/practice" data-nav="practice">🎯 Practice</a>
-      <a href="#/notebook" data-nav="notebook">📓 Mistakes</a>
-      <a href="#/verbs" data-nav="verbs">🔤 Verbs</a>
-      <a href="#/words" data-nav="words">🗂️ Words</a>
-      <a href="#/culture" data-nav="culture">📖 Reading</a>
-      <a href="#/stats" data-nav="stats">📈 Stats</a>
+      <a href="#/home" data-nav="home"><span class="ic" aria-hidden="true">🏠</span> Today</a>
+      <a href="#/learn" data-nav="learn"><span class="ic" aria-hidden="true">📚</span> Learn</a>
+      <a href="#/practice" data-nav="practice"><span class="ic" aria-hidden="true">🎯</span> Practice</a>
+      <a href="#/notebook" data-nav="notebook"><span class="ic" aria-hidden="true">📓</span> Mistakes</a>
+      <a href="#/verbs" data-nav="verbs" class="more-item"><span class="ic" aria-hidden="true">🔤</span> Verbs</a>
+      <a href="#/words" data-nav="words" class="more-item"><span class="ic" aria-hidden="true">🗂️</span> Words</a>
+      <a href="#/culture" data-nav="culture" class="more-item"><span class="ic" aria-hidden="true">📖</span> Reading</a>
+      <a href="#/stats" data-nav="stats" class="more-item"><span class="ic" aria-hidden="true">📈</span> Stats</a>
       <div class="spacer"></div>
       <div class="streak" id="nav-streak"></div>
-      <a href="#/settings" data-nav="settings">⚙️ Settings</a>
+      <a href="#/settings" data-nav="settings" class="more-item"><span class="ic" aria-hidden="true">⚙️</span> Settings</a>
+      <button type="button" id="more-btn" class="more-btn" aria-haspopup="true" aria-expanded="false"><span class="ic" aria-hidden="true">☰</span> More</button>
     </nav>
     <main id="main" tabindex="-1"><p class="muted" id="boot-status">Loading…</p></main>
   </div>
-  <script>window.CHE_STATIC = true; window.CHE_BUILD = "20261005-1510-a1184c5";</script>
+  <script>window.CHE_STATIC = true; window.CHE_BUILD = "20261014-1157-7de9aa2";</script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

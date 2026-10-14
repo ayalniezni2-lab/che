@@ -19,12 +19,37 @@ export async function api(path, body) {
 }
 
 // Export the progress file (both versions) and remember the day, for the backup reminder.
+// On a phone it opens the share sheet (Save to Files, WhatsApp, Mail…); elsewhere it downloads the file.
+// Returns false when the learner cancelled — then it does not count as a backup.
 export async function exportProgress() {
-  const a = isStatic
-    ? await api('progress/export').then((d) => h('a', { href: URL.createObjectURL(new Blob([d.text], { type: d.type })), download: d.name }))
-    : h('a', { href: '/api/progress/export', download: '' });
-  document.body.append(a); a.click(); a.remove();
+  if (!isStatic) {
+    const a = h('a', { href: '/api/progress/export', download: '' });
+    document.body.append(a); a.click(); a.remove();
+    await api('progress/exported', {});
+    return true;
+  }
+  const d = await api('progress/export');
+  const file = new File([d.text], d.name, { type: 'application/json' });
+  if (navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'Che! progress backup' });
+    } catch (err) {
+      if (err && err.name === 'AbortError') return false;     // closed the share sheet: nothing was saved
+      throw err;
+    }
+  } else {
+    const url = URL.createObjectURL(file);
+    const a = h('a', { href: url, download: d.name });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
   await api('progress/exported', {});
+  return true;
+}
+
+// Today as YYYY-MM-DD in the learner's own time zone (the engine's days are local days too).
+export function localDay(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // Where a chapter of the course opens: a lesson, or a reading (a text with questions).
@@ -101,29 +126,142 @@ export function toast(msg, ms = 2600) {
 }
 
 // ---------------------------------------------------------------- audio (pre-generated MP3s only)
-let current = null;
+// Phone / web version: every clip that is played or prefetched is kept in the browser's cache ("che-audio"),
+// so a session started with internet keeps its sound on the subte. One shared player: once iOS has allowed it to
+// play after a tap, later clips may start on their own.
 export const settings = { audio_rate: 1.0, autoplay: true, shortcuts: true };
+const AUDIO_CACHE = 'che-audio';
+const MAX_CLIPS = 4000;                    // ~50 MB; the oldest are dropped first
+const player = typeof Audio !== 'undefined' ? new Audio() : null;
+const blobs = new Map();                   // url -> object URL of a cached clip
+let lastNoAudio = 0;
 
+const clipUrl = (url) => (isStatic ? url.replace(/^\//, '') : url);    // web version: relative to the site
+const canCache = () => isStatic && typeof caches !== 'undefined';
+
+async function cachedBlobUrl(url) {
+  if (blobs.has(url)) return blobs.get(url);
+  if (!canCache()) return null;
+  try {
+    const cache = await caches.open(AUDIO_CACHE);
+    let res = await cache.match(clipUrl(url));
+    if (!res) {
+      const net = await fetch(clipUrl(url));
+      if (!net.ok) return null;
+      await cache.put(clipUrl(url), net.clone());
+      res = net;
+    }
+    const obj = URL.createObjectURL(await res.blob());
+    blobs.set(url, obj);
+    if (blobs.size > 300) {                // keep memory small: forget the oldest object URLs
+      const [k, v] = blobs.entries().next().value; URL.revokeObjectURL(v); blobs.delete(k);
+    }
+    return obj;
+  } catch { return null; }
+}
+
+// Is this clip playable right now (in the cache, or online)?
+export async function clipReady(url) {
+  if (!url) return false;
+  if (!canCache()) return true;
+  if (blobs.has(url)) return true;
+  try { if (await (await caches.open(AUDIO_CACHE)).match(clipUrl(url))) return true; } catch { /* no cache */ }
+  return navigator.onLine !== false;
+}
+
+// Download a session's clips in the background, so it keeps working without internet.
+export async function prefetchAudio(urls) {
+  if (!canCache() || navigator.onLine === false) return;
+  const list = [...new Set(urls.filter(Boolean))];
+  let cache;
+  try { cache = await caches.open(AUDIO_CACHE); } catch { return; }
+  const todo = [];
+  for (const u of list) { if (!(await cache.match(clipUrl(u)))) todo.push(u); }
+  const worker = async () => {
+    while (todo.length) {
+      const u = todo.shift();
+      try { const r = await fetch(clipUrl(u)); if (r.ok) await cache.put(clipUrl(u), r); } catch { return; }
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  try {                                    // keep the cache to a sensible size
+    const keys = await cache.keys();
+    for (const k of keys.slice(0, Math.max(0, keys.length - MAX_CLIPS))) await cache.delete(k);
+  } catch { /* fine */ }
+}
+
+// Every clip an exercise list can play (for prefetchAudio).
+export function audioOf(items) {
+  const out = [];
+  const add = (x) => { if (x && typeof x === 'string') out.push(x); };
+  for (const ex of items || []) {
+    add(ex.audio); add(ex.audio_q); add(ex.audio_msg);
+    if (ex.item) { add(ex.item.audio); add(ex.item.ex_audio); }
+    if (ex.pair_audio) Object.values(ex.pair_audio).forEach(add);
+    if (ex.table && ex.table.rows) ex.table.rows.forEach((r) => add(r.audio));
+  }
+  return out;
+}
+
+function noAudio() {
+  if (Date.now() - lastNoAudio < 20000) return;
+  lastNoAudio = Date.now();
+  toast(navigator.onLine === false ? '🔇 No connection — this audio is not on the phone yet.' : '🔇 This audio could not be played.', 3500);
+}
+
+// Starts at once (inside the tap, as iOS wants) from memory or the internet, and keeps a copy for later;
+// without internet it plays the copy kept on the phone.
 export function playAudio(url, rate) {
-  if (!url) return Promise.resolve(false);
-  if (current) { current.pause(); current = null; }
+  if (!url || !player) return Promise.resolve(false);
   document.querySelectorAll('.play.playing').forEach((b) => b.classList.remove('playing'));
-  const a = new Audio(isStatic ? url.replace(/^\//, '') : url);   // web version: relative to the site
-  a.playbackRate = rate || settings.audio_rate || 1.0;
-  a.preservesPitch = true;
-  current = a;
-  return a.play().then(() => true).catch(() => false);
+  player.pause();
+  const start = (src, retry = true) => {
+    player.src = src;
+    player.defaultPlaybackRate = player.playbackRate = rate || settings.audio_rate || 1.0;
+    player.preservesPitch = true;
+    return player.play().then(() => true, (err) => {
+      if (err && err.name === 'NotAllowedError') return false;  // autoplay before any tap: stay quiet
+      if (retry && canCache() && src !== blobs.get(url)) {      // weak signal: try the copy on the phone
+        return cachedBlobUrl(url).then((s) => (s ? start(s, false) : (noAudio(), false)));
+      }
+      noAudio();
+      return false;
+    });
+  };
+  const memo = blobs.get(url);
+  if (memo || !canCache() || navigator.onLine !== false) {
+    if (!memo && canCache()) cachedBlobUrl(url);               // keep a copy for the subte
+    return start(memo || clipUrl(url));
+  }
+  return cachedBlobUrl(url).then((src) => (src ? start(src) : (noAudio(), false)));
+}
+
+// Play several clips one after another (a whole dialogue). Returns a stop function.
+export function playAll(urls, onLine) {
+  let i = 0; let stopped = false;
+  const step = async () => {
+    if (stopped || i >= urls.length) { if (onLine) onLine(-1); return; }
+    if (onLine) onLine(i);
+    const ok = await playAudio(urls[i]);
+    if (!ok) { stopped = true; if (onLine) onLine(-1); return; }
+    player.onended = () => { player.onended = null; i += 1; setTimeout(step, 350); };
+  };
+  step();
+  return () => { stopped = true; player.onended = null; player.pause(); if (onLine) onLine(-1); };
 }
 
 // Play button (+ optional slow 0.75× button).  Disabled when there is no clip.
 export function playBtn(url, { slow = true } = {}) {
   const wrap = h('span.row', { style: 'gap:4px;display:inline-flex;flex-wrap:nowrap' });
   const mk = (label, rate, cls, title) => h('button.play' + cls, {
-    type: 'button', title: url ? title : 'No audio for this item yet', disabled: !url,
+    type: 'button', title: url ? title : 'No audio for this item yet', 'aria-label': url ? title : 'No audio', disabled: !url,
     onclick: (e) => {
       e.stopPropagation();
       const b = e.currentTarget; b.classList.add('playing');
-      playAudio(url, rate).then(() => { if (current) current.onended = () => b.classList.remove('playing'); });
+      playAudio(url, rate).then((ok) => {
+        if (!ok) { b.classList.remove('playing'); return; }
+        player.onended = () => b.classList.remove('playing');
+      });
       setTimeout(() => b.classList.remove('playing'), 6000);
     } }, label);
   wrap.append(mk('▶', null, '', 'Play'));

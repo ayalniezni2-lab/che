@@ -1,4 +1,4 @@
-// Free practice: endless drills built on this computer — costs nothing, never runs out.
+// Free practice: endless drills built by the app itself — costs nothing, never runs out.
 import { api, h, toast } from '../ui.js';
 import { runSequence } from '../exercise.js';
 
@@ -13,7 +13,7 @@ export default async function (main, args = []) {
   const chosen = new Set();
   const level = h('select.sel', h('option', { value: '' }, 'My level'), ['a1', 'a2', 'b1', 'b2'].map((l) => h('option', { value: l }, 'Up to ' + l.toUpperCase())));
   const count = h('select.sel', [10, 15, 20, 30].map((n) => h('option', { value: n, selected: n === 15 }, n + ' questions')));
-  const verbsBox = h('input.search', { type: 'text', placeholder: 'Only these verbs (optional): tener, ir, hacer', style: 'min-width:320px' });
+  const verbsBox = h('input.search', { type: 'text', placeholder: 'Only these verbs (optional): tener, ir, hacer', style: 'flex:1 1 220px;min-width:0' });
   const tenseChips = h('div.chips', TENSES.map(([k, l]) => {
     const b = h('button.chip', { type: 'button', 'aria-pressed': 'false', onclick: () => { chosen.has(k) ? chosen.delete(k) : chosen.add(k); b.classList.toggle('sel', chosen.has(k)); b.setAttribute('aria-pressed', String(chosen.has(k))); } }, l);
     return b;
@@ -23,7 +23,7 @@ export default async function (main, args = []) {
     if (stop) { stop(); stop = null; }
     main.replaceChildren(h('div',
       h('h1', 'Practice'),
-      h('p.muted', 'Endless drills generated on your computer. They lean toward your weak spots and the most common words.'),
+      h('p.muted', 'Endless drills, made up on the spot. They lean toward your weak spots and the most common words.'),
       h('div.row', { style: 'margin:10px 0' }, level, count),
       h('div.grid',
         tile('🔀 Mixed', 'A bit of everything', () => run({ kind: 'mixed' })),

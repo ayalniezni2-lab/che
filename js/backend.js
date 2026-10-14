@@ -10,8 +10,7 @@ let booting = null;
 let saving = Promise.resolve();
 
 function status(msg) {
-  const el = document.getElementById('boot-status');
-  if (el) el.textContent = msg;
+  document.querySelectorAll('#boot-status, .boot-status').forEach((el) => { el.textContent = msg; });
 }
 
 function syncfs(populate) {
@@ -44,15 +43,32 @@ export function boot() {
   return booting;
 }
 
+// Saving failed (storage full, private mode…): say so — quietly losing progress is the worst thing that can happen.
+let warned = false;
+function saveFailed(err) {
+  console.error('Saving progress failed', err);
+  if (warned) return;
+  warned = true;
+  const bar = document.createElement('div');
+  bar.className = 'update-bar save-failed';
+  bar.setAttribute('role', 'alert');
+  bar.textContent = '⚠️ Your progress could not be saved on this phone (storage full or blocked). '
+    + 'Export a backup from Settings now, then free some space.';
+  bar.onclick = () => bar.remove();
+  document.body.append(bar);
+}
+
 // Same contract as a request to the local server: {code, payload} or {code, download}.
 export async function call(method, path, query, body) {
   await boot();
   const out = JSON.parse(bridgeCall(method, path, JSON.stringify(query || {}), JSON.stringify(body || {})));
-  if (method === 'POST') {                           // anything that changes progress: write it to storage
-    saving = saving.then(() => syncfs(false)).catch((err) => console.error('Saving progress failed', err));
+  if (out.saved) {                                   // the progress file changed: write it to the phone's storage
+    saving = saving.then(() => syncfs(false)).catch(saveFailed);
   }
   return out;
 }
+
+export const engineReady = () => !!bridgeCall;
 
 export function flush() { return py ? saving.then(() => syncfs(false)) : Promise.resolve(); }
 

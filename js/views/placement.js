@@ -1,14 +1,15 @@
 // Placement test: 6 quick questions per level; stops at the first level that is not passed.
 import { api, h } from '../ui.js';
 import { renderExercise } from '../exercise.js';
-import { go, refreshBoot } from '../app.js';
+import { go, refreshBoot, store } from '../app.js';
 
 const NAMES = { a1: 'Survival (A1)', a2: 'Everyday (A2)', b1: 'Conversational (B1)', b2: 'Fluent-ish (B2)' };
 
 export default async function (main) {
   const data = await api('placement');
   let cleanup = null;
-  const skip = () => { sessionStorage.setItem('skipPlacement', '1'); go('#/home'); };
+  // 'Not now' (and the X during the test) is remembered: the test is offered again only from Settings
+  const skip = () => { store.set('che-skip-placement', '1'); go('#/home'); };
 
   main.append(h('div.card.center',
     h('h1', 'Where should you start?'),
@@ -24,7 +25,7 @@ export default async function (main) {
     const stage = h('div');
     const label = h('div.small.muted');
     main.replaceChildren(h('div.topbar', h('b', 'Placement test'), label,
-      h('button.btn.ghost', { onclick: () => { if (cleanup) cleanup(); go('#/home'); } }, '✕')), stage);
+      h('button.btn.ghost', { 'aria-label': 'Stop the test', onclick: () => { if (cleanup) cleanup(); skip(); } }, '✕')), stage);
     const next = () => {
       if (cleanup) cleanup();
       const block = data.blocks[b];

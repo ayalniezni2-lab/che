@@ -32,7 +32,7 @@ export default async function (main) {
           h('option', { value: v, selected: state.show === v }, l))),
       sel('topic', data.topics, 'All topics'),
       sel('kind', data.kinds.map((k) => [k, KIND_LABEL[k] || k]), 'All kinds of mistake'),
-      data.items.length ? h('button.btn.primary', { onclick: () => review(data.items) }, `Practise these (${Math.min(data.items.length, 20)})`) : null));
+      practisable(data.items).length ? h('button.btn.primary', { onclick: () => review(data.items) }, `Practise these (${Math.min(practisable(data.items).length, 20)})`) : null));
     list.replaceChildren(...(data.items.length ? data.items.map(card) : [h('div.card.center', h('p.muted',
       state.show === 'open' ? 'Nothing to fix right now. ¡Bien ahí!' : 'Nothing here.'))]));
   }
@@ -42,7 +42,7 @@ export default async function (main) {
       m.table ? conjTable(m.table) : null,
       m.why ? h('div.why', { html: '<b>Why:</b> ' + md(whyText(m.why, m.table)) }) : null,
       m.extra ? exampleRow(m.extra) : null,
-      h('div.row', h('button.btn.ghost.danger.small', { onclick: async () => { await api('notebook/remove', { id: m.id }); toast('Removed.'); load(); } }, 'Remove from notebook')));
+      h('div.row', h('button.btn.ghost.danger.small', { onclick: async () => { if (!confirm('Remove this mistake from the notebook? It will not come back for practice.')) return; await api('notebook/remove', { id: m.id }); toast('Removed.'); load(); } }, 'Remove from notebook')));
     return h('div.card',
       h('div.row.between',
         h('div.row', h('span.tag.level', m.topic_label || m.topic || 'general'), (m.kinds || []).map((k) => h('span.tag.slang', KIND_LABEL[k] || k)),
@@ -59,8 +59,10 @@ export default async function (main) {
       details);
   }
 
+  function practisable(items) { return items.filter((m) => m.ex && m.ex.type && !m.resolved); }
+
   function review(items) {
-    const exs = items.filter((m) => m.ex && m.ex.type).slice(0, 20).map((m) => m.ex);
+    const exs = practisable(items).slice(0, 20).map((m) => m.ex);
     if (!exs.length) return;
     head.replaceChildren();
     stop = runSequence(list, exs, { title: 'Mistake review', ctx: { notebook: true }, onFinish: () => load() });

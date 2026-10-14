@@ -1,20 +1,26 @@
 // Today: streak, quick stats, the "Today" session button.
-import { h, api, toast, exportProgress, chapterHref } from '../ui.js';
-import { refreshBoot, go } from '../app.js';
+import { h, api, toast, exportProgress, chapterHref, localDay } from '../ui.js';
+import { refreshBoot, go, state, store } from '../app.js';
 
 export default async function (main) {
-  const b = await refreshBoot();
+  // phone: while the engine starts, the page is drawn from last time's copy (app.js) and refreshed after
+  const b = state.snapshot ? state.boot : await refreshBoot();
   const t = b.today || {};
   const acc = t.answers ? Math.round(100 * t.correct / t.answers) : null;
   const done = b.units.filter((u) => u.completed).length;
+  const mins = (b.settings && b.settings.session_minutes) || 15;
+  const resume = resumable();
   main.append(h('div',
     h('h1', '¡Hola, che!'),
     h('p.muted', 'Argentine Spanish, the way it is spoken in Buenos Aires. Vos, never tú.'),
+    state.snapshot ? h('p.small.muted.boot-status', 'Starting the Spanish engine…') : null,
     b.backup_due ? backupReminder() : null,
     h('div.card.center',
-      h('p', b.due ? `${b.due} review${b.due === 1 ? ' is' : 's are'} waiting for you.`
-        : 'About 15 minutes: reviews that are due, something new, and your recent mistakes.'),
-      h('button.btn.primary.big', { onclick: () => go('#/session/today'), autofocus: true }, '▶  Today’s session'),
+      h('p', b.due > 40 ? `${b.due} reviews are waiting — Today will help you catch up, a little at a time.`
+        : b.due ? `${b.due} review${b.due === 1 ? ' is' : 's are'} waiting for you.`
+          : `About ${mins} minutes: reviews that are due, something new, and your recent mistakes.`),
+      h('button.btn.primary.big', { onclick: () => go('#/session/today'), autofocus: true },
+        resume ? `▶  Continue Today’s session (${resume} left)` : '▶  Today’s session'),
       h('p.small.muted.kbd-hint', { style: 'margin-top:10px' },
         'Tip: Enter submits, Enter again continues, number keys pick answers.')),
     h('div.card',
@@ -36,12 +42,21 @@ export default async function (main) {
   ));
 }
 
+// A Today session stopped half-way today can be continued (session.js keeps it in this browser).
+function resumable() {
+  try {
+    const r = JSON.parse(store.get('che-resume:today') || 'null');
+    return r && r.date === localDay() && r.queue && r.queue.length ? r.queue.filter((x) => x.type !== 'intro').length : 0;
+  } catch { return 0; }
+}
+
 // Every two weeks (when there is real progress): a quiet one-line nudge to keep a copy of the progress file.
 function backupReminder() {
   const card = h('div.backup-nudge',
     h('span', '💾 Time for a backup — a copy keeps your progress safe.'),
     h('button.btn.small', { onclick: async () => {
-      await exportProgress(); card.remove(); toast('Backup saved — keep that file somewhere safe.', 4000);
+      if (!(await exportProgress())) return;
+      card.remove(); toast('Backup saved — keep that file somewhere safe.', 4000);
     } }, 'Back up now'),
     h('button.btn.small.ghost', { onclick: async () => {
       const d = new Date(Date.now() + 7 * 864e5);
