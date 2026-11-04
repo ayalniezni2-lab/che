@@ -2,7 +2,7 @@
 // (what you wrote vs the answer, diagnosis, conjugation table, why, extra example, "I was right", "Report").
 // Keyboard: Enter submits · Enter again continues · number keys pick a choice.
 import { api, h, md, accentMarked, playAudio, playBtn, conjTable, whyText, regTag, settings, exampleRow, toast,
-  clipReady, localDay } from './ui.js';
+  clipReady, localDay, quietToday, setQuiet, autoplayOn } from './ui.js';
 import { answerBox } from './input.js';
 import { focusMode, store } from './app.js';
 
@@ -34,7 +34,7 @@ function renderIntro(root, ex, onDone) {
     it.ex ? h('div.card.flat', exampleRow({ es: it.ex, en: it.ex_en, audio: it.ex_audio })) : null,
     h('div.row', { style: 'margin-top:12px' }, h('button.btn.primary.continue', { type: 'button', onclick: go }, 'Got it'),
       h('span.small.muted.kbd-hint', 'or press Enter — you will be asked about it in a minute'))));
-  if (settings.autoplay && it.audio) setTimeout(() => playAudio(it.audio), 250);
+  if (autoplayOn() && it.audio) setTimeout(() => playAudio(it.audio), 250);
   return () => document.removeEventListener('keydown', onKey);
 }
 
@@ -53,6 +53,26 @@ export function renderExercise(root, ex, { onDone, ctx = {}, dry = false } = {})
   let onSkip = () => submit('');
   const skipBtn = h('button.btn.ghost', { type: 'button', title: 'Show me the answer', onclick: () => onSkip() }, "I don't know");
   const actions = h('div.row', { style: 'margin-top:14px' }, submitBtn, skipBtn);
+  // in class / on the bus: skip a listening question without it counting (no mistake, no Notebook entry)
+  if (LISTEN.includes(ex.type)) {
+    let left = false;
+    const leave = (quiet) => {
+      if (left) return;
+      left = true;
+      if (quiet) { setQuiet(true); toast('🔇 Quiet mode is on for today: listening questions are skipped. Settings turns it off.', 4000); }
+      document.removeEventListener('keydown', onKey);
+      if (onDone) onDone({ skipped: true });
+    };
+    actions.append(h('button.btn.ghost', { type: 'button', title: 'Skip this one: it does not count', onclick: () => {
+      if (answered || submitting) return;
+      submitting = true;                        // Enter / number keys must not answer it now
+      actions.replaceChildren(h('div', { style: 'width:100%' },
+        h('div.small.muted', { style: 'margin-bottom:6px' }, 'Skipped — it does not count. Skip the other listening questions too?'),
+        h('div.row',
+          h('button.btn.primary', { type: 'button', onclick: () => leave(true) }, '🔇 Skip all listening today'),
+          h('button.btn', { type: 'button', onclick: () => leave(false) }, 'Just this one'))));
+    } }, "🔇 Can't listen now"));
+  }
 
   // ---------- header / prompt
   if (ex.reg && ex.reg !== 'neutral') box.append(h('div', { style: 'float:right' }, regTag(ex.reg)));
@@ -69,14 +89,14 @@ export function renderExercise(root, ex, { onDone, ctx = {}, dry = false } = {})
     const slow = h('button.btn', { type: 'button', onclick: () => playAudio(ex.audio, 0.75) }, '0.75×');
     box.append(h('div.row', { style: 'margin:12px 0' }, big, slow,
       ex.audio ? null : h('span.small.muted', 'No audio clip for this one yet — press “I don’t know” to skip.')));
-    if (ex.audio && settings.autoplay) setTimeout(() => playAudio(ex.audio), 250);
+    if (ex.audio && autoplayOn()) setTimeout(() => playAudio(ex.audio), 250);
   } else if (ex.type === 'reply') {
     // a message to answer, like on WhatsApp: the message (with its sound and English), then your reply
     box.append(h('div.chat',
       h('div.bubble', h('div.row', { style: 'gap:8px;flex-wrap:nowrap;align-items:flex-start' },
         h('div', h('div.es', { html: accentMarked(ex.es || '') }), ex.en ? h('div.en.small', ex.en) : null),
         ex.audio_msg ? playBtn(ex.audio_msg, { slow: false }) : null))));
-    if (ex.audio_msg && settings.autoplay) setTimeout(() => playAudio(ex.audio_msg), 250);
+    if (ex.audio_msg && autoplayOn()) setTimeout(() => playAudio(ex.audio_msg), 250);
   } else {
     // a sentence with a blank plays with a pause where the blank is: the audio must not give the answer away
     if (ex.es) box.append(h('div.row', h('div.sentence', { html: accentMarked(ex.es) }),
@@ -212,7 +232,7 @@ export function renderExercise(root, ex, { onDone, ctx = {}, dry = false } = {})
     if (box._lock) box._lock();
     actions.replaceChildren();
     feedback.replaceChildren(feedbackPanel(ex, r, finish, { dry, typed: typeof answer === 'string' ? answer : '' }));
-    if (settings.autoplay && r.audio && !(LISTEN.includes(ex.type) && r.correct)) playAudio(r.audio);
+    if (autoplayOn() && r.audio && !(LISTEN.includes(ex.type) && r.correct)) playAudio(r.audio);
     const cont = feedback.querySelector('.continue');
     if (cont) cont.focus({ preventScroll: true });
     feedback.scrollIntoView({ block: feedback.offsetHeight > window.innerHeight * 0.75 ? 'start' : 'nearest', behavior: 'smooth' });
@@ -341,10 +361,11 @@ export function runSequence(root, exercises, { ctx = {}, onFinish, onAnswer, tit
     if (closed) return;
     if (cleanup) cleanup();
     let ex = queue.shift();
-    // no sound for a listening question (offline, not saved on the phone): skip it, it does not count
-    while (ex && LISTEN.includes(ex.type) && ex.audio && !(await clipReady(ex.audio))) {
-      toast('🔇 A listening question was skipped — its sound needs an internet connection.', 3500);
-      if (!retried.has(ex.id)) total -= 1;
+    // a listening question in quiet mode, or without sound (offline, not saved on the phone): skip it, it does not count
+    while (ex && LISTEN.includes(ex.type) && (quietToday() || (ex.audio && !(await clipReady(ex.audio))))) {
+      toast(quietToday() ? '🔇 Quiet mode: a listening question was skipped (it does not count).'
+        : '🔇 A listening question was skipped — its sound needs an internet connection.', 3500);
+      if (retried.has(ex.id)) doneCount += 1; else total -= 1;
       ex = queue.shift();
     }
     current = ex || null;
@@ -359,6 +380,10 @@ export function runSequence(root, exercises, { ctx = {}, onFinish, onAnswer, tit
     }
     cleanup = renderExercise(stage, ex, { ctx, dry, onDone: (r) => {
       if (r && r.intro) { current = null; next(); return; }
+      if (r && r.skipped) {                       // "Can't listen now": as if the question was never there
+        if (retried.has(ex.id)) doneCount += 1; else total -= 1;
+        current = null; next(); return;
+      }
       if (onAnswer) onAnswer(ex, r);
       const again = retried.has(ex.id);
       if (r && r.correct) { right += 1; if (!again) firstTry += 1; }

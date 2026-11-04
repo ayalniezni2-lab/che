@@ -1,5 +1,5 @@
 // Today: streak, quick stats, the "Today" session button.
-import { h, api, toast, exportProgress, chapterHref, localDay, KIND_ICON, startTodayFlow } from '../ui.js';
+import { h, api, toast, exportProgress, chapterHref, localDay, KIND_ICON, startTodayFlow, quietToday, setQuiet } from '../ui.js';
 import { refreshBoot, go, state, store } from '../app.js';
 
 export default async function (main) {
@@ -17,6 +17,9 @@ export default async function (main) {
     h('div.card.center',
       todayLine(b),
       h('button.btn.primary.big', { onclick: () => go('#/session/today'), autofocus: true }, '▶  Today'),
+      quietToday() ? h('div.small', { style: 'margin-top:8px' }, "🔇 Quiet mode is on today: listening is skipped. ",
+        h('a', { href: '#/', onclick: (e) => { e.preventDefault(); setQuiet(false); e.currentTarget.parentNode.remove();
+          toast('🔊 Quiet mode off.'); } }, 'Turn it off')) : null,
       resume ? h('div.small', { style: 'margin-top:8px' },
         h('a', { href: '#/session/review' }, `Continue your quick review (${resume} left)`)) : null,
       h('p.small.muted.kbd-hint', { style: 'margin-top:10px' },

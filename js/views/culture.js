@@ -1,5 +1,5 @@
 // Reading: usage notes, plus every dialogue and mini-reading with its comprehension questions.
-import { api, h, md, exampleRow, regTag, chapterHref, prefetchAudio, audioOf, afterChapter } from '../ui.js';
+import { api, h, md, exampleRow, regTag, chapterHref, prefetchAudio, audioOf, afterChapter, quietToday } from '../ui.js';
 import { dialogueBlock } from './unit.js';
 import { runSequence } from '../exercise.js';
 
@@ -26,7 +26,9 @@ export default async function (main, [kind, id]) {
 async function showDialogue(main, id) {
   const d = await api('dialogue/' + encodeURIComponent(id));
   let stop = null;
-  let heard = false;                          // listen-first readings: the text appears after the questions
+  // listen-first readings: the text appears after the questions (in quiet mode it is shown at once)
+  const quiet = d.listen_first && quietToday();
+  let heard = quiet;
   prefetchAudio(d.lines.map((l) => l.audio).concat(audioOf(d.questions)));
   const lesson = () => {
     if (stop) { stop(); stop = null; }
@@ -36,6 +38,8 @@ async function showDialogue(main, id) {
       h('a.small', { href: ch ? '#/learn' : '#/culture' }, ch ? '← Learn' : '← Reading'),
       ch ? h('div.small.muted', { style: 'margin-top:6px' }, `Stage ${ch.stage_n} · chapter ${ch.pos} of ${ch.count} · 📖 Reading`) : null,
       h('h1', d.title),
+      quiet ? h('div.intro', h('div.label', '🔇 Quiet mode'), h('div', 'This one is meant for your ears, but quiet mode '
+        + 'is on today, so here is the text: read it, then answer the questions.')) : null,
       listenFirst ? h('div.intro', h('div.label', '🎧 Listen first'), h('div', 'This one is for your ears: press ▶ Play all '
         + '(as often as you like), then answer the questions. The text appears after the questions.'))
         : ch ? h('div.intro', h('div.label', '📖 Reading chapter'), h('div', 'Read the text below (tap ▶ to hear each line, '

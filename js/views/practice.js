@@ -1,5 +1,5 @@
 // Free practice: endless drills built by the app itself — costs nothing, never runs out.
-import { api, h, toast } from '../ui.js';
+import { api, h, toast, quietToday } from '../ui.js';
 import { runSequence } from '../exercise.js';
 
 const TENSES = [
@@ -58,6 +58,9 @@ export default async function (main, args = []) {
   const tile = (title, sub, fn) => h('button.card.btn', { style: 'text-align:left;margin:0', onclick: fn }, h('div', { style: 'font-size:1.15rem' }, title), h('div.small.muted', sub));
 
   async function run(spec) {
+    if (spec.kind === 'listen' && quietToday()) {
+      toast('🔇 Quiet mode is on today, so listening is skipped. Settings turns it off.', 4000); return;
+    }
     const body = { ...spec, n: Number(count.value), level: level.value || null };
     const { items } = await api('drill', body);
     if (!items.length) { toast('Nothing to drill for that choice yet.'); return; }

@@ -153,6 +153,13 @@ export function toast(msg, ms = 2600) {
 // so a session started with internet keeps its sound on the subte. One shared player: once iOS has allowed it to
 // play after a tap, later clips may start on their own.
 export const settings = { audio_rate: 1.0, autoplay: true, shortcuts: true };
+
+// Quiet mode ("🔇 Can't listen now", e.g. in class): listening questions are skipped (they do not count) and no
+// sound plays by itself. Kept on this device only and only for today: it turns itself off the next day.
+const QUIET_KEY = 'che-quiet';
+export function quietToday() { try { return localStorage.getItem(QUIET_KEY) === localDay(); } catch { return false; } }
+export function setQuiet(on) { try { localStorage.setItem(QUIET_KEY, on ? localDay() : ''); } catch { /* fine */ } }
+export const autoplayOn = () => settings.autoplay && !quietToday();
 const AUDIO_CACHE = 'che-audio';
 const MAX_CLIPS = 4000;                    // ~50 MB; the oldest are dropped first
 const player = typeof Audio !== 'undefined' ? new Audio() : null;

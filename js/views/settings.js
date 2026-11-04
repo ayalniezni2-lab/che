@@ -1,5 +1,5 @@
 // Settings: theme, audio, typing helpers, vulgar opt-in, export / import, placement redo.
-import { api, h, toast, settings, exportProgress } from '../ui.js';
+import { api, h, toast, settings, exportProgress, quietToday, setQuiet } from '../ui.js';
 import { applyTheme, refreshBoot, go } from '../app.js';
 import { isStatic } from '../backend.js';
 
@@ -79,7 +79,13 @@ export default async function (main) {
       h('div.row', 'Theme', select('theme', [['auto', 'Match my device'], ['light', 'Light'], ['dark', 'Dark']]))),
     h('div.card', h('h3', 'Audio'),
       h('div.row', 'Default speed', select('audio_rate', [[1, 'Normal'], [0.75, 'Slow (0.75×)']])),
-      check('autoplay', 'Play audio automatically', 'On listening exercises and after each answer.')),
+      check('autoplay', 'Play audio automatically', 'On listening exercises and after each answer.'),
+      h('label.row', { style: 'margin:8px 0' },
+        h('input', { type: 'checkbox', checked: quietToday(), onchange: (e) => {
+          setQuiet(e.target.checked); toast(e.target.checked ? '🔇 Quiet mode on for today.' : '🔊 Quiet mode off.');
+        } }),
+        h('span', "🔇 Quiet mode — can't listen today", h('div.small.muted', 'Listening questions are skipped (they do not '
+          + 'count) and nothing plays by itself. On this device only; it turns itself off tomorrow.')))),
     h('div.card', h('h3', 'Typing'),
       check('shortcuts', "Typing shortcuts:  a' → á,  n~ → ñ,  ?? → ¿,  !! → ¡",
         'Optional. Plain letters are always accepted — you never lose points for accents.')),
