@@ -1,5 +1,5 @@
 // Today: streak, quick stats, the "Today" session button.
-import { h, api, toast, exportProgress, chapterHref, localDay } from '../ui.js';
+import { h, api, toast, exportProgress, chapterHref, localDay, KIND_ICON, startTodayFlow } from '../ui.js';
 import { refreshBoot, go, state, store } from '../app.js';
 
 export default async function (main) {
@@ -8,7 +8,6 @@ export default async function (main) {
   const t = b.today || {};
   const acc = t.answers ? Math.round(100 * t.correct / t.answers) : null;
   const done = b.units.filter((u) => u.completed).length;
-  const mins = (b.settings && b.settings.session_minutes) || 15;
   const resume = resumable();
   main.append(h('div',
     h('h1', '¡Hola, che!'),
@@ -16,11 +15,10 @@ export default async function (main) {
     state.snapshot ? h('p.small.muted.boot-status', 'Starting the Spanish engine…') : null,
     b.backup_due ? backupReminder() : null,
     h('div.card.center',
-      h('p', b.due > 40 ? `${b.due} reviews are waiting — Today will help you catch up, a little at a time.`
-        : b.due ? `${b.due} review${b.due === 1 ? ' is' : 's are'} waiting for you.`
-          : `About ${mins} minutes: reviews that are due, something new, and your recent mistakes.`),
-      h('button.btn.primary.big', { onclick: () => go('#/session/today'), autofocus: true },
-        resume ? `▶  Continue Today’s session (${resume} left)` : '▶  Today’s session'),
+      todayLine(b),
+      h('button.btn.primary.big', { onclick: () => go('#/session/today'), autofocus: true }, '▶  Today'),
+      resume ? h('div.small', { style: 'margin-top:8px' },
+        h('a', { href: '#/session/review' }, `Continue your quick review (${resume} left)`)) : null,
       h('p.small.muted.kbd-hint', { style: 'margin-top:10px' },
         'Tip: Enter submits, Enter again continues, number keys pick answers.')),
     h('div.card',
@@ -42,10 +40,17 @@ export default async function (main) {
   ));
 }
 
-// A Today session stopped half-way today can be continued (session.js keeps it in this browser).
+// Today = the next chapter on the path, then a quick review.
+function todayLine(b) {
+  const nx = b.course && b.course.next;
+  if (!nx) return h('p', 'Today: a quick review of your mistakes and the reviews that are due.');
+  return h('p', 'Today: ', h('b', `${KIND_ICON[nx.kind] || ''} ${nx.title}`), ', then a quick review.');
+}
+
+// A quick review stopped half-way today can be continued (session.js keeps it in this browser).
 function resumable() {
   try {
-    const r = JSON.parse(store.get('che-resume:today') || 'null');
+    const r = JSON.parse(store.get('che-resume:review') || 'null');
     return r && r.date === localDay() && r.queue && r.queue.length ? r.queue.filter((x) => x.type !== 'intro').length : 0;
   } catch { return 0; }
 }
@@ -66,7 +71,6 @@ function backupReminder() {
   return card;
 }
 
-const ICON = { tense: '🔤', irregular: '⚡', topic: '💬', general: '☕', reading: '📖' };
 
 async function moveOn(cs) {
   await api('course/stage', { stage: 'next' });
@@ -87,9 +91,14 @@ function pathCard(b) {
     const ch = cs.next;
     return h('div', head,
       h('div.small.muted', ch.started ? 'Continue:' : 'Next chapter:'),
-      h('a.unit.next', { href: chapterHref(ch) }, h('div.num', String(ch.pos)),
-        h('div', h('div.t', `${ICON[ch.kind] || ''} ${ch.title}`), h('div.g', ch.goal || ''))),
-      cs.next_stage ? h('div.small', { style: 'margin-top:8px' },
+      h('a.unit.next', { href: chapterHref(ch), onclick: () => startTodayFlow(ch.id) },
+        h('div.num', ch.kind === 'words' ? '📚' : String(ch.pos)),
+        h('div', h('div.t', `${KIND_ICON[ch.kind] || ''} ${ch.title}`), h('div.g', ch.goal || ''))),
+      st.n === 1 && st.done < 6 && cs.next_stage ? h('div.tip.small', { style: 'margin-top:8px' },
+        h('b', 'Already know the present? '), 'Start at the past tense instead — the everyday words still come to you, '
+        + 'as word chapters between the lessons. ',
+        h('a', { href: '#/home', onclick: (e) => { e.preventDefault(); moveOn(cs); } }, 'Start Stage 2 now')) : null,
+      cs.next_stage && !(st.n === 1 && st.done < 6) ? h('div.small', { style: 'margin-top:8px' },
         h('a', { href: '#/home', onclick: (e) => {
           e.preventDefault();
           if (confirm(`Move on to Stage ${cs.next_stage.n} (${cs.next_stage.title}) now? The chapters you leave stay open, and you can come back any time.`)) moveOn(cs);

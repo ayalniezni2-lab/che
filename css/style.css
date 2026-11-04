@@ -217,6 +217,7 @@ kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5p
 .unit .t { font-weight: 600; } .unit .g { color: var(--ink-2); font-size: .88rem; }
 .unit.next { border: 2px solid var(--accent); background: var(--accent-soft); }
 .unit.next .num { background: var(--accent); color: var(--accent-ink); }
+.part { margin: 14px 2px 6px; text-transform: uppercase; letter-spacing: .04em; font-size: .75rem; }
 details.stage > summary { cursor: pointer; list-style: none; }
 details.stage > summary::-webkit-details-marker { display: none; }
 details.stage.current { border: 2px solid var(--accent); }

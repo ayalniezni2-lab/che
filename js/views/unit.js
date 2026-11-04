@@ -1,6 +1,6 @@
 // A unit: first the teaching section (always), then the exercises.
 import { api, h, md, accentMarked, exampleRow, conjTable, playBtn, regTag, esc, chapterHref, toast, playAll,
-  prefetchAudio, audioOf } from '../ui.js';
+  prefetchAudio, audioOf, KIND_ICON as ICON, afterChapter } from '../ui.js';
 import { runSequence, savedPlace, forgetPlace } from '../exercise.js';
 import { go } from '../app.js';
 
@@ -67,7 +67,6 @@ export function teachBlock(b) {
   }
 }
 
-const ICON = { tense: '🔤', irregular: '⚡', topic: '💬', general: '☕', reading: '📖' };
 
 export default async function (main, [uid, mode]) {
   const u = await api('unit/' + encodeURIComponent(uid));
@@ -132,7 +131,7 @@ export default async function (main, [uid, mode]) {
         h('div.row', { style: 'justify-content:center' },
           h('button.btn', { onclick: showLesson }, 'Back to the lesson'),
           h('button.btn', { onclick: tryAgain, title: 'What you missed, plus fresh questions on the same material' }, 'Try again'),
-          nextBtn())));
+          ...afterChapter(u.id, u.next_chapter, { passed: out.passed }))));
     } });
   };
 
@@ -151,7 +150,7 @@ export default async function (main, [uid, mode]) {
           h('p', `${res.right} / ${res.total} — you know this chapter. It is ticked off, and its words and verbs can now come up in your practice.`),
           h('div.row', { style: 'justify-content:center' },
             h('button.btn', { onclick: () => go('#/learn') }, 'Back to Learn'),
-            out.next ? h('button.btn.primary', { onclick: () => go(chapterHref(out.next)) }, 'Next chapter →') : null)));
+            ...afterChapter(u.id, out.next))));
         return;
       }
       main.replaceChildren(h('div.card.center', h('h1', 'Worth a look'),

@@ -1,5 +1,5 @@
 // Reading: usage notes, plus every dialogue and mini-reading with its comprehension questions.
-import { api, h, md, exampleRow, regTag, chapterHref, prefetchAudio, audioOf } from '../ui.js';
+import { api, h, md, exampleRow, regTag, chapterHref, prefetchAudio, audioOf, afterChapter } from '../ui.js';
 import { dialogueBlock } from './unit.js';
 import { runSequence } from '../exercise.js';
 
@@ -60,8 +60,8 @@ async function showDialogue(main, id) {
       stage.replaceChildren(h('div.card.center', h('h2', `${res.right} / ${res.total}`),
         out ? h('p.muted', out.passed ? 'Chapter complete.' : 'You need 70% to tick this chapter off — read the text again and retry.') : null,
         h('div.row', { style: 'justify-content:center' }, h('button.btn', { onclick: lesson }, d.listen_first ? 'Now read the text' : 'Back to the text'),
-          d.next_chapter ? h('a.btn.primary', { href: chapterHref(d.next_chapter) }, 'Next chapter →')
-            : h('a.btn.primary', { href: '#/culture' }, 'More dialogues'))));
+          ...(d.chapter ? afterChapter(d.id, d.next_chapter, { passed: !out || out.passed })
+            : [h('a.btn.primary', { href: '#/culture' }, 'More dialogues')]))));
     } });
   };
   lesson();

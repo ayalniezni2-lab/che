@@ -52,9 +52,32 @@ export function localDay(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// Where a chapter of the course opens: a lesson, or a reading (a text with questions).
+// Where a chapter of the course opens: a lesson, a reading (a text with questions), a stage check or new words.
+const CHAPTER_ROUTE = { reading: '#/culture/d/', check: '#/check/', words: '#/wch/' };
 export function chapterHref(ch) {
-  return (ch.type === 'reading' ? '#/culture/d/' : '#/unit/') + encodeURIComponent(ch.id);
+  return (CHAPTER_ROUTE[ch.type] || '#/unit/') + encodeURIComponent(ch.id);
+}
+export const KIND_ICON = { tense: '🔤', irregular: '⚡', topic: '💬', general: '☕', reading: '📖', check: '✅', words: '📚' };
+
+// Today = the next chapter, then a quick review. While a chapter is opened from Today, its last screen offers
+// "Quick review →" (kept in this browser for today only).
+function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode: fine */ } }
+export function startTodayFlow(id) { lsSet('che-today-flow', JSON.stringify({ date: localDay(), id })); }
+export function inTodayFlow(id) {
+  try {
+    const f = JSON.parse(lsGet('che-today-flow') || 'null');
+    return !!f && f.date === localDay() && f.id === id;
+  } catch { return false; }
+}
+export function endTodayFlow() { lsSet('che-today-flow', ''); }
+// The buttons at the end of a chapter: from Today → "Quick review"; otherwise → the next chapter.
+export function afterChapter(id, next, { passed = true } = {}) {
+  const today = inTodayFlow(id);
+  const btns = [];
+  if (today) btns.push(h('a.btn.primary', { href: '#/session/review', onclick: () => endTodayFlow() }, 'Quick review →'));
+  if (next && passed) btns.push(h('a.btn' + (today ? '' : '.primary'), { href: chapterHref(next) }, 'Next chapter →'));
+  return btns;
 }
 
 // h('div.card', {onclick}, child, child…)

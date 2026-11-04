@@ -8,6 +8,8 @@ const ROUTES = {
   home: () => import('./views/home.js'),
   learn: () => import('./views/learn.js'),
   unit: () => import('./views/unit.js'),
+  check: () => import('./views/check.js'),
+  wch: () => import('./views/wordch.js'),
   session: () => import('./views/session.js'),
   practice: () => import('./views/practice.js'),
   notebook: () => import('./views/notebook.js'),
@@ -70,7 +72,7 @@ async function render() {
   closeMore();
   focusMode(false);
   document.querySelectorAll('#nav a[data-nav]').forEach((a) => {
-    const on = a.dataset.nav === name || (name === 'unit' && a.dataset.nav === 'learn')
+    const on = a.dataset.nav === name || (['unit', 'check', 'wch'].includes(name) && a.dataset.nav === 'learn')
       || (name === 'session' && a.dataset.nav === 'home');
     a.classList.toggle('active', on);
     if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
